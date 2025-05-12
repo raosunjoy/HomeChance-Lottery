@@ -1,0 +1,21 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 16
+    commands:
+      - npm install
+  build:
+    commands:
+      - npm test
+      - docker build -t homechance-backend:latest .
+      - aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 123456789012.dkr.ecr.us-east-1.amazonaws.com
+      - docker tag homechance-backend:latest 123456789012.dkr.ecr.us-east-1.amazonaws.com/homechance-backend:latest
+      - docker push 123456789012.dkr.ecr.us-east-1.amazonaws.com/homechance-backend:latest
+  post_build:
+    commands:
+      - aws ecs update-service --cluster homechance-preprod-cluster --service homechance-service --force-new-deployment
+artifacts:
+  files:
+    - '**/*'
