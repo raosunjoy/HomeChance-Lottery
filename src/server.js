@@ -262,4 +262,14 @@ app.get('/api/compliance-report', authenticateToken, async (req, res) => {
 
 app.get('/health', (req, res) => res.status(200).json({ status: 'healthy' }));
 
-app.listen(3000, () => console.log('Server running on port 3000'));
+app.get('/api/users', async (req, res) => {
+    try {
+      const users = await User.find();
+      res.json(users);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
