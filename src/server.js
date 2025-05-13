@@ -43,6 +43,14 @@ mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
 const connection = new Connection('https://api.mainnet-beta.solana.com', 'confirmed');
 const platformWallet = Keypair.fromSecretKey(bs58.decode(PLATFORM_WALLET_PRIVATE_KEY));
 
+// Define User schema
+const userSchema = new mongoose.Schema({
+    name: String,
+    email: String,
+    password: String
+});
+const User = mongoose.model('User', userSchema);
+
 const verifyKycAml = async (userId) => {
     try {
         const userVerification = await mongoose.model('UserVerification').findOne({ userId });
@@ -262,15 +270,41 @@ app.get('/api/compliance-report', authenticateToken, async (req, res) => {
 
 app.get('/health', (req, res) => res.status(200).json({ status: 'healthy' }));
 
-try {
-    console.log('Fetching users...');
-    const users = await User.find();
-    console.log('Users fetched:', users);
-    res.json(users);
-  } catch (error) {
-    console.error('Error in /api/users:', error);
-    res.status(500).json({ error: 'Internal server error', message: error.message });
-  }
-  
-  const PORT = process.env.PORT || 3000;
-  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.get('/api/users', async (req, res) => {
+    try {
+        console.log('Fetching users...');
+        const users = await User.find();
+        console.log('Users fetched:', users);
+        res.json(users);
+    } catch (error) {
+        console.error('Error in /api/users:', error);
+        res.status(500).json({ error: 'Internal server error', message: error.message });
+    }
+});
+
+app.post('/api/register', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        if (!email || !password) {
+            return res.status(400).json({ error: 'Email and password are required' });
+        }
+
+        const existingUser = await User.findOne({ email });
+        if (existingUser) {
+            return res.status(400).json({ error: 'User already exists' });
+        }
+
+        const newUser = new User({ email, password });
+        await newUser.save();
+
+        await sendEmail(email, 'Welcome to HomeChance', 'Thank you for registering with HomeChance!');
+        res.status(200).json({ message: 'User registered, email sent' });
+    } catch (error) {
+        console.error('Error in /api/register:', error);
+        Sentry.captureException(error);
+        res.status(500).json({ error: 'Internal server error', message: error.message });
+    }
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
