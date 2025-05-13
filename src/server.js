@@ -11,9 +11,9 @@ const jwt = require('jsonwebtoken');
 const Sentry = require('@sentry/node');
 const Stripe = require('stripe');
 const { Parser } = require('json2csv');
-const ses = new AWS.SES({ region: 'us-east-1' });
+const ses = new AWS.SES({ region: 'ap-southeast-2' });
 
-AWS.config.update({ region: 'us-east-1' });
+AWS.config.update({ region: 'ap-southeast-2' });
 
 const app = express();
 app.use(express.json());
