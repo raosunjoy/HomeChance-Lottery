@@ -40,7 +40,9 @@ mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
     .then(() => console.log('Connected to MongoDB'))
     .catch(err => console.error('MongoDB connection error:', err));
 
-const connection = new Connection('https://api.mainnet-beta.solana.com', 'confirmed');
+// const connection = new Connection('https://api.mainnet-beta.solana.com', 'confirmed');
+const { Connection, PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } = require('@solana/web3.js');
+const connection = new Connection('https://api.devnet.solana.com', 'confirmed'); // Replace mainnet URL
 const platformWallet = Keypair.fromSecretKey(bs58.decode(PLATFORM_WALLET_PRIVATE_KEY));
 
 // Define User schema
