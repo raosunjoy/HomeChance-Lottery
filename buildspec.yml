@@ -4,11 +4,12 @@ phases:
     commands:
       - echo Logging in to Amazon ECR...
       - aws ecr get-login-password --region ap-southeast-2 | docker login --username AWS --password-stdin 516451496412.dkr.ecr.ap-southeast-2.amazonaws.com
+      - echo Commit ID: $CODEBUILD_RESOLVED_SOURCE_VERSION
   build:
     commands:
       - echo Building the Docker image...
-      - docker build -t 516451496412.dkr.ecr.ap-southeast-2.amazonaws.com/homechance-backend:latest .
+      - docker build -t 516451496412.dkr.ecr.ap-southeast-2.amazonaws.com/homechance-backend:$CODEBUILD_RESOLVED_SOURCE_VERSION .
   post_build:
     commands:
       - echo Pushing the Docker image...
-      - docker push 516451496412.dkr.ecr.ap-southeast-2.amazonaws.com/homechance-backend:latest
+      - docker push 516451496412.dkr.ecr.ap-southeast-2.amazonaws.com/homechance-backend:$CODEBUILD_RESOLVED_SOURCE_VERSION
