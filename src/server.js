@@ -1,5 +1,9 @@
+const express = require('express');
 const { Connection, PublicKey, LAMPORTS_PER_SOL } = require('@solana/web3.js');
 const { signTransaction } = require('./sign_transaction');
+
+const app = express();
+app.use(express.json()); // Middleware to parse JSON bodies
 
 const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
 
@@ -43,4 +47,10 @@ app.post('/api/purchase-ticket', async (req, res) => {
         console.error('Stack trace:', error.stack);
         res.status(500).json({ error: 'Internal server error' });
     }
+});
+
+// Start the server (optional, depending on ECS entry point)
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
 });
