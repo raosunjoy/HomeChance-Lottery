@@ -1,15 +1,22 @@
 version: 0.2
-
 phases:
   pre_build:
     commands:
-      - echo Logging in to Amazon ECR...
+      - echo "Fetching source..."
+      - echo "Commit ID: $CODEBUILD_RESOLVED_SOURCE_VERSION"
+      - echo "Logging in to Amazon ECR..."
       - aws ecr get-login-password --region ap-southeast-2 | docker login --username AWS --password-stdin 516451496412.dkr.ecr.ap-southeast-2.amazonaws.com
   build:
     commands:
-      - echo Building the Docker image...
-      - docker build -t 516451496412.dkr.ecr.ap-southeast-2.amazonaws.com/homechance-backend:latest .
+      - npm install
+      - npm run build
   post_build:
     commands:
-      - echo Pushing the Docker image...
-      - docker push 516451496412.dkr.ecr.ap-southeast-2.amazonaws.com/homechance-backend:latest
+      - echo "Building the Docker image..."
+      - docker build -t homechance-backend:$CODEBUILD_RESOLVED_SOURCE_VERSION .
+      - echo "Pushing to ECR..."
+      - docker tag homechance-backend:$CODEBUILD_RESOLVED_SOURCE_VERSION <aws_account_id>.dkr.ecr.ap-southeast-2.amazonaws.com/homechance-backend:$CODEBUILD_RESOLVED_SOURCE_VERSION
+      - docker push <aws_account_id>.dkr.ecr.ap-southeast-2.amazonaws.com/homechance-backend:$CODEBUILD_RESOLVED_SOURCE_VERSION
+artifacts:
+  files:
+    - '**/*'
