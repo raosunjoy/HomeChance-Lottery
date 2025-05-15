@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<body>
+    <h3>Sign Solana Transaction with Phantom</h3>
+    <label for="txHex">Paste Serialized Transaction Hex:</label><br>
+    <textarea id="txHex" rows="4" cols="50" placeholder="Paste the hex from signTransaction.js here"></textarea><br><br>
+    <button onclick="signTransaction()">Sign Transaction</button>
+    <p id="result"></p>
+    <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
+    <script>
+        async function signTransaction() {
+            const serializedTxHex = document.getElementById('txHex').value;
+            if (!serializedTxHex) {
+                document.getElementById('result').innerText = 'Please paste the transaction hex first!';
+                return;
+            }
+
+            try {
+                const serializedTx = new Uint8Array(serializedTxHex.match(/[\da-fA-F]{2}/g).map(byte => parseInt(byte, 16)));
+                console.log('Serialized Tx Length:', serializedTx.length);
+
+                const provider = window.phantom?.solana;
+                if (!provider?.isPhantom) {
+                    document.getElementById('result').innerText = 'Phantom Wallet not found!';
+                    return;
+                }
+
+                console.log('Provider detected, connecting...');
+                await provider.connect();
+                console.log('Connected, preparing transaction...');
+
+                const transaction = window.solanaWeb3.VersionedTransaction.deserialize(serializedTx);
+                console.log('Transaction prepared:', transaction);
+
+                console.log('Signing transaction...');
+                const signedTx = await provider.signTransaction(transaction);
+                const signature = signedTx.signatures[0].toString('base64');
+                console.log('Signature:', signature);
+
+                document.getElementById('result').innerText = 'Signature: ' + signature;
+                // Ensure clipboard write happens in direct response to user click
+                try {
+                    await navigator.clipboard.writeText(signature);
+                    console.log('Signature copied to clipboard');
+                } catch (clipboardError) {
+                    console.error('Clipboard write failed:', clipboardError);
+                    document.getElementById('result').innerText += '\n(Failed to copy to clipboard, please copy manually)';
+                }
+            } catch (error) {
+                document.getElementById('result').innerText = 'Error signing: ' + error.message;
+                console.error('Error signing:', error);
+                console.error('Stack trace:', error.stack);
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<body>
+    <button onclick="connectPhantom()">Connect to Phantom</button>
+    <p id="result"></p>
+    <script>
+        async function connectPhantom() {
+            const provider = window.phantom?.solana;
+            if (!provider?.isPhantom) {
+                document.getElementById('result').innerText = 'Phantom Wallet not found!';
+                return;
+            }
+            try {
+                const resp = await provider.connect();
+                document.getElementById('result').innerText = 'Connected: ' + resp.publicKey.toString();
+            } catch (error) {
+                document.getElementById('result').innerText = 'Error: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>
