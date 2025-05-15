@@ -15,8 +15,8 @@ phases:
       - echo "Building the Docker image..."
       - docker build -t homechance-backend:$CODEBUILD_RESOLVED_SOURCE_VERSION .
       - echo "Pushing to ECR..."
-      - docker tag homechance-backend:$CODEBUILD_RESOLVED_SOURCE_VERSION <aws_account_id>.dkr.ecr.ap-southeast-2.amazonaws.com/homechance-backend:$CODEBUILD_RESOLVED_SOURCE_VERSION
-      - docker push <aws_account_id>.dkr.ecr.ap-southeast-2.amazonaws.com/homechance-backend:$CODEBUILD_RESOLVED_SOURCE_VERSION
+      - docker tag homechance-backend:$CODEBUILD_RESOLVED_SOURCE_VERSION 516451496412.dkr.ecr.ap-southeast-2.amazonaws.com/homechance-backend:$CODEBUILD_RESOLVED_SOURCE_VERSION
+      - docker push 516451496412.dkr.ecr.ap-southeast-2.amazonaws.com/homechance-backend:$CODEBUILD_RESOLVED_SOURCE_VERSION
 artifacts:
   files:
     - '**/*'
