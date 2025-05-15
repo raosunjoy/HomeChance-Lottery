@@ -1,5 +1,5 @@
 const { Connection, PublicKey, LAMPORTS_PER_SOL } = require('@solana/web3.js');
-const { signTransaction } = require('./sign_Transaction');
+const { signTransaction } = require('./sign_transaction');
 
 const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
 
@@ -8,7 +8,6 @@ app.post('/api/purchase-ticket', async (req, res) => {
     try {
         const { raffleId, userId, userWallet, ticketCount } = req.body;
 
-        // Validate inputs
         if (!raffleId || !userId || !userWallet || !ticketCount) {
             console.log('Validation failed: Missing required fields');
             return res.status(400).json({ error: 'Missing required fields' });
@@ -27,23 +26,17 @@ app.post('/api/purchase-ticket', async (req, res) => {
             return res.status(400).json({ error: `Insufficient funds: Required ${totalCost / LAMPORTS_PER_SOL} SOL, but only ${balance / LAMPORTS_PER_SOL} SOL available` });
         }
 
-        // Use the signTransaction utility
         console.log('Generating and signing transaction...');
         const { signature, transaction } = await signTransaction(userWallet, ticketCount);
 
-        // Send transaction
         console.log('Sending transaction...');
         const txid = await connection.sendRawTransaction(transaction.serialize());
         console.log('Transaction sent, confirming:', txid);
 
-        // Confirm transaction
         await connection.confirmTransaction(txid);
         console.log('Transaction confirmed:', txid);
 
-        // Send email (placeholder)
         console.log('Sending confirmation email to sunjoyrao@gmail.com');
-        // Replace with actual SES code if implemented
-
         res.json({ success: true, signature: txid });
     } catch (error) {
         console.error('Error in /api/purchase-ticket:', error.message);

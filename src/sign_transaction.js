@@ -1,28 +1,48 @@
-const { Keypair, Transaction, SystemProgram, PublicKey, LAMPORTS_PER_SOL } = require('@solana/web3.js');
+const { Connection, Keypair, Transaction, SystemProgram } = require('@solana/web3.js');
 const bs58 = require('bs58');
+const AWS = require('aws-sdk');
 
-// For testing, generate a mock keypair. In production, this should load a real user wallet.
-const userId = process.argv[2] || 'default-user';
+AWS.config.update({ region: 'ap-southeast-2' });
+const secretsManager = new AWS.SecretsManager();
 
-// Generate a mock keypair for the user
-const userKeypair = Keypair.generate();
-const publicKey = userKeypair.publicKey.toString();
+async function getSecret(secretName) {
+    const data = await secretsManager.getSecretValue({ SecretId: secretName }).promise();
+    return JSON.parse(data.SecretString);
+}
 
-// For testing, create a dummy transaction to sign (mimics the purchase transaction in server.js)
-const platformPublicKey = new PublicKey('DummyPlatformPublicKey1234'); // Replace with actual platform wallet public key in production
-const ticketPriceLamports = 41 * LAMPORTS_PER_SOL;
-const ticketCount = 1; // Default for testing
+(async () => {
+    try {
+        const secrets = await getSecret('homechance/preprod/secrets');
+        const { TEST_WALLET_PRIVATE_KEY, PLATFORM_WALLET_PUBLIC_KEY } = secrets;
 
-const transaction = new Transaction().add(
-    SystemProgram.transfer({
-        fromPubkey: userKeypair.publicKey,
-        toPubkey: platformPublicKey,
-        lamports: ticketPriceLamports * ticketCount,
-    })
-);
+        const connection = new Connection('https://api.mainnet-beta.solana.com', 'confirmed');
+        const testWallet = Keypair.fromSecretKey(bs58.decode(TEST_WALLET_PRIVATE_KEY));
+        const platformWallet = new PublicKey(PLATFORM_WALLET_PUBLIC_KEY);
 
-// Sign the transaction with the mock keypair
-const signature = bs58.encode(userKeypair.sign(transaction.instructions[0].data).signature);
+        const userId = process.argv[2] || 'default_user';
+        const ticketPriceLamports = 41 * 1e9;
 
-// Output the public key and signature as JSON for load_test.py to consume
-console.log(JSON.stringify({ publicKey, signature }));
+        const transaction = new Transaction().add(
+            SystemProgram.transfer({
+                fromPubkey: testWallet.publicKey,
+                toPubkey: platformWallet,
+                lamports: ticketPriceLamports,
+            })
+        );
+        const { blockhash } = await connection.getLatestBlockhash();
+        transaction.recentBlockhash = blockhash;
+        transaction.feePayer = testWallet.publicKey;
+
+        transaction.sign(testWallet);
+        const signature = transaction.signature.toString('base64');
+
+        console.log(JSON.stringify({
+            publicKey: testWallet.publicKey.toBase58(),
+            signature: signature
+        }));
+    } catch (error) {
+        console.error('Error signing transaction:', error);
+        console.log(JSON.stringify({ error: error.message }));
+        process.exit(1);
+    }
+})();
