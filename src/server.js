@@ -1,4 +1,5 @@
 const express = require('express');
+const jwt = require('jsonwebtoken');
 const { Connection, PublicKey, LAMPORTS_PER_SOL } = require('@solana/web3.js');
 const { signTransaction } = require('./sign_transaction');
 
@@ -7,7 +8,30 @@ app.use(express.json()); // Middleware to parse JSON bodies
 
 const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
 
-app.post('/api/purchase-ticket', async (req, res) => {
+// JWT Middleware
+const authenticateToken = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1]; // Bearer <token>
+
+    if (!token) {
+        console.log('No token provided');
+        return res.status(401).json({ error: 'No token provided' });
+    }
+
+    console.log(`Authenticating token: ${token}`);
+    jwt.verify(token, process.env.JWT_SECRET || 'your-exact-secret-from-task-definition', (err, user) => {
+        if (err) {
+            console.log('Token verification failed:', err.message);
+            return res.status(403).json({ error: 'Invalid or expired token' });
+        }
+
+        console.log('Token verified, user:', user);
+        req.user = user;
+        next();
+    });
+};
+
+app.post('/api/purchase-ticket', authenticateToken, async (req, res) => {
     console.log('Processing /api/purchase-ticket request:', req.body);
     try {
         const { raffleId, userId, userWallet, ticketCount } = req.body;
@@ -49,7 +73,6 @@ app.post('/api/purchase-ticket', async (req, res) => {
     }
 });
 
-// Start the server (optional, depending on ECS entry point)
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
