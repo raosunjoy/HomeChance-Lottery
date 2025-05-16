@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
 const AWS = require('aws-sdk');
 const { Connection, PublicKey, Transaction, SystemProgram, sendAndConfirmTransaction, Keypair } = require('@solana/web3.js');
 const bs58 = require('bs58');
+const { stringify } = require('csv-stringify');
 const Raffle = require('../models/Raffle');
 const TransactionLog = require('../models/TransactionLog');
 const { createCheckoutSession, paySellerAndCharity } = require('../payments/stripe');
@@ -93,9 +94,22 @@ app.get('/api/raffle-status/:raffleId', authenticateToken, async (req, res) => {
 app.get('/api/compliance-report', async (req, res) => {
   try {
     const transactions = await TransactionLog.find().select('userId wallet amount amountUsd timestamp');
-    res.status(200).json({
-      report: transactions,
-      generatedAt: new Date().toISOString()
+    const records = transactions.map(t => ({
+      userId: t.userId,
+      wallet: t.wallet,
+      amount: t.amount,
+      amountUsd: t.amountUsd,
+      timestamp: t.timestamp.toISOString()
+    }));
+
+    stringify(records, { header: true }, (err, output) => {
+      if (err) {
+        console.error('Error generating CSV:', err);
+        return res.status(500).json({ error: 'Failed to generate report' });
+      }
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename="compliance-report.csv"');
+      res.status(200).send(output);
     });
   } catch (error) {
     console.error('Error generating compliance report:', error);
