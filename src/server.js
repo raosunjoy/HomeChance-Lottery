@@ -7,12 +7,15 @@ const { Connection, PublicKey, Transaction, SystemProgram, sendAndConfirmTransac
 const bs58 = require('bs58');
 const Raffle = require('../models/Raffle');
 const TransactionLog = require('../models/TransactionLog');
+const { createCheckoutSession, paySellerAndCharity } = require('../payments/stripe');
+const { processSolPayment, paySellerAndCharitySol } = require('../payments/solana');
+const { getSolToUsdRate, getUsdToSolRate } = require('../utils/exchangeRate');
+const { generateRandomNumber } = require('../utils/rng');
 
 const app = express();
 const secretsManager = new AWS.SecretsManager({ region: 'ap-southeast-2' });
 const cloudwatch = new AWS.CloudWatch({ region: 'ap-southeast-2' });
 
-// Middleware
 app.use(express.json());
 app.use(cors({
   origin: 'https://homechance.io',
@@ -20,16 +23,19 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Fetch secrets from AWS Secrets Manager
 async function getSecrets() {
   const secretData = await secretsManager.getSecretValue({ SecretId: 'homechance-secrets' }).promise();
   const secrets = JSON.parse(secretData.SecretString);
   process.env.PLATFORM_WALLET_PRIVATE_KEY = secrets.PLATFORM_WALLET_PRIVATE_KEY;
   process.env.MONGO_URI = secrets.MONGO_URI;
   process.env.JWT_SECRET = secrets.JWT_SECRET;
+  process.env.STRIPE_PUBLISHABLE_KEY = secrets.STRIPE_PUBLISHABLE_KEY;
+  process.env.STRIPE_SECRET_KEY = secrets.STRIPE_SECRET_KEY;
+  process.env.CHARITY_WALLET = secrets.CHARITY_WALLET;
+  process.env.ESCROW_WALLET = secrets.ESCROW_WALLET;
+  process.env.ESCROW_WALLET_PRIVATE_KEY = secrets.ESCROW_WALLET_PRIVATE_KEY;
 }
 
-// JWT Authentication Middleware
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -42,7 +48,6 @@ function authenticateToken(req, res, next) {
   });
 }
 
-// Connect to MongoDB and start server
 (async () => {
   try {
     await getSecrets();
@@ -54,7 +59,6 @@ function authenticateToken(req, res, next) {
   }
 })();
 
-// Endpoints
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'OK', message: 'Server is running' });
 });
@@ -63,14 +67,22 @@ app.get('/api/raffle-status/:raffleId', authenticateToken, async (req, res) => {
   try {
     const { raffleId } = req.params;
     const raffle = await Raffle.findOne({ raffleId });
-    if (!raffle) {
-      return res.status(404).json({ error: 'Raffle not found' });
-    }
+    if (!raffle) return res.status(404).json({ error: 'Raffle not found' });
+
+    const solToUsdRate = await getSolToUsdRate();
+    const ticketPriceUsd = raffle.ticketPrice * solToUsdRate;
+
     res.status(200).json({
       raffleId: raffle.raffleId,
+      propertyValue: raffle.propertyValue,
+      ticketPriceSol: raffle.ticketPrice,
+      ticketPriceUsd: ticketPriceUsd,
       ticketsSold: raffle.ticketsSold || 0,
-      fundsRaised: raffle.fundsRaised || 0,
-      status: raffle.status || 'active'
+      fundsRaisedSol: raffle.fundsRaised || 0,
+      fundsRaisedUsd: raffle.fundsRaised * solToUsdRate,
+      status: raffle.status || 'active',
+      winnerId: raffle.winnerId,
+      propertyTransferred: raffle.propertyTransferred
     });
   } catch (error) {
     console.error('Error fetching raffle status:', error);
@@ -80,7 +92,7 @@ app.get('/api/raffle-status/:raffleId', authenticateToken, async (req, res) => {
 
 app.get('/api/compliance-report', async (req, res) => {
   try {
-    const transactions = await TransactionLog.find().select('userId wallet amount timestamp');
+    const transactions = await TransactionLog.find().select('userId wallet amount amountUsd timestamp');
     res.status(200).json({
       report: transactions,
       generatedAt: new Date().toISOString()
@@ -91,87 +103,202 @@ app.get('/api/compliance-report', async (req, res) => {
   }
 });
 
-app.post('/api/charity-transfer', async (req, res) => {
+app.post('/api/create-raffle', async (req, res) => {
   try {
-    const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
-    const platformWalletPrivateKey = process.env.PLATFORM_WALLET_PRIVATE_KEY;
-    const platformKeypair = Keypair.fromSecretKey(bs58.decode(platformWalletPrivateKey));
-    const charityWallet = new PublicKey('CHARITY_WALLET_ADDRESS'); // Replace with actual address
+    const { raffleId, propertyValueUsd, sellerWallet, paymentType } = req.body;
+    
+    const usdToSolRate = await getUsdToSolRate();
+    const propertyValueSol = propertyValueUsd * usdToSolRate;
+    const ticketPriceSol = (11 * propertyValueSol) / (90 * 1000);
+    const ticketPriceUsd = ticketPriceSol / usdToSolRate;
 
-    const raffle = await Raffle.findOne({ raffleId: 'raffle1' });
-    const profit = (raffle.fundsRaised || 0) * 0.7; // 70% margin
-    const amountToTransfer = profit * 0.1; // 10% of profit
-    const lamports = amountToTransfer * 1_000_000_000; // Convert SOL to lamports
+    const raffle = new Raffle({
+      raffleId,
+      propertyValue: propertyValueSol,
+      ticketPrice: ticketPriceSol,
+      sellerWallet,
+      paymentType,
+      maxTickets: 10000
+    });
+    await raffle.save();
 
-    const transaction = new Transaction().add(
-      SystemProgram.transfer({
-        fromPubkey: platformKeypair.publicKey,
-        toPubkey: charityWallet,
-        lamports
-      })
-    );
-
-    const signature = await sendAndConfirmTransaction(connection, transaction, [platformKeypair]);
-    console.log(`Charity transfer successful: ${signature}`);
-    res.status(200).json({ success: true, signature });
+    res.status(201).json({
+      success: true,
+      raffleId,
+      ticketPriceSol,
+      ticketPriceUsd
+    });
   } catch (error) {
-    console.error('Error processing charity transfer:', error);
+    console.error('Error creating raffle:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-app.post('/api/purchase-ticket', authenticateToken, async (req, res) => {
+app.post('/api/purchase-ticket-fiat', async (req, res) => {
   try {
-    const { raffleId, userId, userWallet, ticketCount } = req.body;
-    const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
-    const userPublicKey = new PublicKey(userWallet);
-    const platformPublicKey = new PublicKey('BJLZeGiWModDYmKTfSHLFHQYT8oBuGNy4CxTfjLf3fwW');
+    const { raffleId, userId } = req.body;
+    const raffle = await Raffle.findOne({ raffleId });
+    if (!raffle) return res.status(404).json({ error: 'Raffle not found' });
+    if (raffle.ticketsSold >= raffle.maxTickets) return res.status(400).json({ error: 'Tickets sold out' });
+    if (raffle.status !== 'active') return res.status(400).json({ error: 'Raffle not active' });
 
-    // Balance check
-    const balance = await connection.getBalance(userPublicKey);
-    const requiredLamports = ticketCount * 41_000_000_000; // 41 SOL per ticket
-    if (balance < requiredLamports) {
-      return res.status(400).json({ error: 'Insufficient funds' });
-    }
+    const solToUsdRate = await getSolToUsdRate();
+    const ticketPriceUsd = raffle.ticketPrice * solToUsdRate;
+    const session = await createCheckoutSession(ticketPriceUsd);
 
-    // Transaction (simulated for testing; in production, client signs)
-    const transaction = new Transaction().add(
-      SystemProgram.transfer({
-        fromPubkey: userPublicKey,
-        toPubkey: platformPublicKey,
-        lamports: requiredLamports
-      })
-    );
-    const signature = "simulated-signature-for-testing";
-
-    // Log to TransactionLog
     await TransactionLog.create({
       userId,
-      wallet: userWallet,
-      amount: ticketCount * 41,
+      wallet: 'fiat_payment',
+      amount: raffle.ticketPrice,
+      amountUsd: ticketPriceUsd,
       raffleId,
       timestamp: new Date()
     });
 
-    // Update Raffle
     await Raffle.findOneAndUpdate(
       { raffleId },
-      { $inc: { ticketsSold: ticketCount, fundsRaised: ticketCount * 41 } },
-      { upsert: true }
+      { $inc: { ticketsSold: 1, fundsRaised: raffle.ticketPrice } }
     );
 
-    // Log CloudWatch metrics
     await cloudwatch.putMetricData({
       MetricData: [
-        { MetricName: 'TicketsSold', Dimensions: [{ Name: 'RaffleId', Value: raffleId }], Unit: 'Count', Value: ticketCount },
-        { MetricName: 'FundsRaised', Dimensions: [{ Name: 'RaffleId', Value: raffleId }], Unit: 'None', Value: ticketCount * 41 }
+        { MetricName: 'TicketsSold', Dimensions: [{ Name: 'RaffleId', Value: raffleId }], Unit: 'Count', Value: 1 },
+        { MetricName: 'FundsRaised', Dimensions: [{ Name: 'RaffleId', Value: raffleId }], Unit: 'None', Value: raffle.ticketPrice }
       ],
       Namespace: 'HomeChance'
     }).promise();
 
-    res.status(200).json({ success: true, signature });
+    res.json({ id: session.id });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/purchase-ticket-sol', authenticateToken, async (req, res) => {
+  try {
+    const { raffleId, userId, userWallet, ticketCount } = req.body;
+    const raffle = await Raffle.findOne({ raffleId });
+    if (!raffle) return res.status(404).json({ error: 'Raffle not found' });
+    if (raffle.ticketsSold + ticketCount > raffle.maxTickets) return res.status(400).json({ error: 'Not enough tickets available' });
+    if (raffle.status !== 'active') return res.status(400).json({ error: 'Raffle not active' });
+
+    const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
+    const userPublicKey = new PublicKey(userWallet);
+    const escrowPublicKey = new PublicKey(process.env.ESCROW_WALLET);
+
+    const balance = await connection.getBalance(userPublicKey);
+    const requiredLamports = ticketCount * raffle.ticketPrice * 1_000_000_000;
+    if (balance < requiredLamports) return res.status(400).json({ error: 'Insufficient funds' });
+
+    const solToUsdRate = await getSolToUsdRate();
+    const ticketPriceUsd = raffle.ticketPrice * solToUsdRate;
+
+    const signature = await processSolPayment(userWallet, ticketCount, raffle.ticketPrice);
+
+    await TransactionLog.create({
+      userId,
+      wallet: userWallet,
+      amount: ticketCount * raffle.ticketPrice,
+      amountUsd: ticketCount * ticketPriceUsd,
+      raffleId,
+      timestamp: new Date()
+    });
+
+    await Raffle.findOneAndUpdate(
+      { raffleId },
+      { $inc: { ticketsSold: ticketCount, fundsRaised: ticketCount * raffle.ticketPrice } }
+    );
+
+    await cloudwatch.putMetricData({
+      MetricData: [
+        { MetricName: 'TicketsSold', Dimensions: [{ Name: 'RaffleId', Value: raffleId }], Unit: 'Count', Value: ticketCount },
+        { MetricName: 'FundsRaised', Dimensions: [{ Name: 'RaffleId', Value: raffleId }], Unit: 'None', Value: ticketCount * raffle.ticketPrice }
+      ],
+      Namespace: 'HomeChance'
+    }).promise();
+
+    const updatedRaffle = await Raffle.findOne({ raffleId });
+    if (updatedRaffle.ticketsSold >= updatedRaffle.maxTickets) {
+      await Raffle.findOneAndUpdate({ raffleId }, { status: 'completed' });
+    }
+
+    res.status(200).json({ success: true, signature, ticketPriceUsd });
   } catch (error) {
     console.error('Error processing ticket purchase:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post('/api/pick-winner', async (req, res) => {
+  try {
+    const { raffleId } = req.body;
+    const raffle = await Raffle.findOne({ raffleId });
+    if (!raffle) return res.status(404).json({ error: 'Raffle not found' });
+    if (raffle.status !== 'completed') return res.status(400).json({ error: 'Raffle not ready for winner selection' });
+
+    const transactions = await TransactionLog.find({ raffleId });
+    if (transactions.length === 0) return res.status(400).json({ error: 'No participants found' });
+
+    const randomNumber = await generateRandomNumber();
+    const randomIndex = randomNumber % transactions.length;
+    const winner = transactions[randomIndex].userId;
+
+    await Raffle.findOneAndUpdate(
+      { raffleId },
+      { winnerId: winner, status: 'pending_transfer' }
+    );
+
+    await cloudwatch.putMetricData({
+      MetricData: [
+        { MetricName: 'WinnerSelected', Dimensions: [{ Name: 'RaffleId', Value: raffleId }], Unit: 'Count', Value: 1 }
+      ],
+      Namespace: 'HomeChance'
+    }).promise();
+
+    res.status(200).json({ success: true, winnerId: winner, randomNumber });
+  } catch (error) {
+    console.error('Error picking winner:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post('/api/confirm-property-transfer', async (req, res) => {
+  try {
+    const { raffleId } = req.body;
+    const raffle = await Raffle.findOne({ raffleId });
+    if (!raffle) return res.status(404).json({ error: 'Raffle not found' });
+    if (raffle.status !== 'pending_transfer') return res.status(400).json({ error: 'Property transfer not ready' });
+
+    await Raffle.findOneAndUpdate(
+      { raffleId },
+      { propertyTransferred: true }
+    );
+
+    const amount = raffle.fundsRaised || 0;
+    const paymentType = raffle.paymentType;
+
+    if (paymentType === 'fiat') {
+      const solToUsdRate = await getSolToUsdRate();
+      const amountUsd = amount * solToUsdRate;
+      const { ownerAmount, charityAmount, platformAmount } = await paySellerAndCharity(amountUsd);
+      await Raffle.findOneAndUpdate({ raffleId }, { status: 'paid' });
+      res.json({ success: true, ownerAmount, charityAmount, platformAmount });
+    } else {
+      const signature = await paySellerAndCharitySol(amount, raffleId);
+      await Raffle.findOneAndUpdate({ raffleId }, { status: 'paid' });
+      res.json({ success: true, signature });
+    }
+
+    await cloudwatch.putMetricData({
+      MetricData: [
+        { MetricName: 'OwnerPayout', Dimensions: [{ Name: 'RaffleId', Value: raffleId }], Unit: 'None', Value: amount * 0.9 },
+        { MetricName: 'CharityPayout', Dimensions: [{ Name: 'RaffleId', Value: raffleId }], Unit: 'None', Value: amount * 0.01 },
+        { MetricName: 'PlatformProfit', Dimensions: [{ Name: 'RaffleId', Value: raffleId }], Unit: 'None', Value: amount * 0.09 }
+      ],
+      Namespace: 'HomeChance'
+    }).promise();
+  } catch (error) {
+    console.error('Error confirming property transfer:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

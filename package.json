@@ -2,21 +2,22 @@
     "name": "homechance-backend",
     "version": "1.0.0",
     "description": "HomeChance Lottery Backend",
-    "main": "server.js",
+    "main": "src/server.js",
     "scripts": {
         "start": "node src/server.js",
         "test": "jest"
     },
     "dependencies": {
-        "@sentry/node": "^7.113.0",
+        "@sentry/node": "^7.118.0",
         "@solana/web3.js": "^1.98.2",
+        "@switchboard-xyz/solana.js": "^2.0.0",
         "aws-sdk": "^2.1692.0",
-        "axios": "^1.6.8",
+        "axios": "^1.7.7",
         "bs58": "^5.0.0",
         "cors": "^2.8.5",
         "dotenv": "^16.5.0",
         "express": "^4.21.2",
-        "json2csv": "^6.0.0-alpha.2",
+        "json2csv": "^5.0.7",
         "jsonwebtoken": "^9.0.2",
         "mongoose": "^7.8.7",
         "stripe": "^16.12.0"
