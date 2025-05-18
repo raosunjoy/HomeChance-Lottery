@@ -30,8 +30,7 @@
     "vitest": "^2.1.9"
   },
   "overrides": {
-    "glob": "10.4.5",
-    "babel-plugin-istanbul/test-exclude": "7.0.1"
+    "glob": "10.4.5"
   }
 }
 
