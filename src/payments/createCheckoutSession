@@ -1,0 +1,13 @@
+// ~/HomeChance-Lottery-New/debug-stripe.js
+require('dotenv').config();
+const { createCheckoutSession } = require('./src/payments/stripe.js');
+
+(async () => {
+    try {
+        const session = await createCheckoutSession(100);
+        console.log('Session:', session);
+    } catch (error) {
+        console.error('Error:', error.message);
+    }
+    process.exit();
+})();
