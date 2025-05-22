@@ -1,0 +1,106 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html>
+<head>
+    <title>HomeChance Lottery</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/p5.min.js"></script>
+    <script src="https://js.stripe.com/v3/"></script>
+    <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.js"></script>
+    <script src="https://unpkg.com/@coral-xyz/anchor@latest/dist/browser/index.js"></script>
+    <script src="script.js" defer></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h1, h2 { color: #333; }
+        .section { margin-bottom: 20px; }
+        .property-listing, .raffle-details { border: 1px solid #ccc; padding: 10px; margin-top: 10px; display: none; }
+        .property-listing p, .raffle-details p { margin: 5px 0; }
+        button { padding: 5px 10px; margin: 5px; }
+        input, select { padding: 5px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>HomeChance Lottery</h1>
+    <div class="section">
+        <h2>Zillow Property Listings</h2>
+        <button onclick="fetchZillowListings()">Fetch Zillow Listings</button>
+        <div id="zillowListings" class="property-listing">
+            <!-- Listings will be populated dynamically -->
+        </div>
+    </div>
+    <div class="section">
+        <h2>List Property</h2>
+        <input id="listRaffleId" placeholder="Raffle ID">
+        <select id="listPropertyId">
+            <option value="">Select a Property</option>
+            <!-- Options will be populated dynamically -->
+        </select>
+        <input id="listTicketPrice" placeholder="Ticket Price (SOL)" type="number">
+        <button onclick="listProperty()">List</button>
+    </div>
+    <div class="section">
+        <h2>View Listings</h2>
+        <select id="viewRaffleId">
+            <option value="">Select a Raffle</option>
+            <option value="raffle1">Raffle 1</option>
+        </select>
+        <button onclick="viewListing()">View</button>
+        <div id="raffleDetails" class="raffle-details">
+            <p><strong>Property ID:</strong> <span id="propertyId"></span></p>
+            <p><strong>Ticket Price:</strong> <span id="ticketPrice"></span> SOL</p>
+            <p><strong>Total Tickets:</strong> <span id="totalTickets"></span></p>
+            <p><strong>Tickets Sold:</strong> <span id="ticketsSold"></span></p>
+            <p><strong>Status:</strong> <span id="raffleStatus"></span></p>
+            <button id="triggerRandomnessBtn" onclick="triggerRandomness()" style="display: none;">Trigger Randomness (Admin)</button>
+        </div>
+    </div>
+    <div class="section">
+        <h2>Buy Tickets</h2>
+        <input id="buyRaffleId" placeholder="Raffle ID">
+        <input id="numTickets" placeholder="Number of Tickets" type="number">
+        <label><input type="radio" name="payment" value="0" checked> SOL</label>
+        <label><input type="radio" name="payment" value="1"> Fiat</label>
+        <button onclick="buyTickets()">Buy</button>
+    </div>
+    <div id="kycStatus">KYC Status: Not Completed</div>
+    <button onclick="completeKYC()">Complete KYC</button>
+    <div id="result"></div>
+</body>
+</html>

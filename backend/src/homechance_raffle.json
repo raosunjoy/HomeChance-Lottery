@@ -1,0 +1,658 @@
+{
+  "version": "0.1.0",
+  "name": "homechance_raffle",
+  "instructions": [
+    {
+      "name": "initializeRaffle",
+      "accounts": [
+        {
+          "name": "raffle",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "seller",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "escrowAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "propertyNftMint",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "propertyTokenMint",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "metadataProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "raffleId",
+          "type": "string"
+        },
+        {
+          "name": "propertyId",
+          "type": "string"
+        },
+        {
+          "name": "ticketPriceSol",
+          "type": "u64"
+        },
+        {
+          "name": "allowFractional",
+          "type": "bool"
+        },
+        {
+          "name": "propertyName",
+          "type": "string"
+        },
+        {
+          "name": "propertySymbol",
+          "type": "string"
+        },
+        {
+          "name": "propertyUri",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "purchaseTicket",
+      "accounts": [
+        {
+          "name": "raffle",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "buyer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "buyerTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "escrowAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "numTickets",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "requestRandomness",
+      "accounts": [
+        {
+          "name": "raffle",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "escrowAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "chainlinkVrfProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "fulfillRandomness",
+      "accounts": [
+        {
+          "name": "raffle",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "randomValue",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "closeRaffle",
+      "accounts": [
+        {
+          "name": "raffle",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "escrowAccount",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "refundOrDistribute",
+      "accounts": [
+        {
+          "name": "raffle",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "escrowAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "seller",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "holderAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "holderTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "propertyTokenMint",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "buyer",
+          "type": "publicKey"
+        }
+      ]
+    },
+    {
+      "name": "processPayoutFullSale",
+      "accounts": [
+        {
+          "name": "raffle",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "escrowAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "seller",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "charityAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "propertyNftAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "winnerNftAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "propertyTransferConfirmed",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "processPayoutFractionalNoMint",
+      "accounts": [
+        {
+          "name": "raffle",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "escrowAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "seller",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "charityAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "processPayoutFractionalWithMint",
+      "accounts": [
+        {
+          "name": "raffle",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "escrowAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "seller",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "sellerTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "charityAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "propertyTokenMint",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Raffle",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "raffleId",
+            "type": "string"
+          },
+          {
+            "name": "propertyId",
+            "type": "string"
+          },
+          {
+            "name": "seller",
+            "type": "publicKey"
+          },
+          {
+            "name": "escrowAccount",
+            "type": "publicKey"
+          },
+          {
+            "name": "ticketPriceSol",
+            "type": "u64"
+          },
+          {
+            "name": "totalTickets",
+            "type": "u64"
+          },
+          {
+            "name": "ticketsSold",
+            "type": "u64"
+          },
+          {
+            "name": "winner",
+            "type": {
+              "option": "publicKey"
+            }
+          },
+          {
+            "name": "propertyNftMint",
+            "type": "publicKey"
+          },
+          {
+            "name": "propertyTokenMint",
+            "type": "publicKey"
+          },
+          {
+            "name": "isCompleted",
+            "type": "bool"
+          },
+          {
+            "name": "allowFractional",
+            "type": "bool"
+          },
+          {
+            "name": "ticketHolders",
+            "type": {
+              "vec": {
+                "defined": "TicketHolder"
+              }
+            }
+          },
+          {
+            "name": "randomValue",
+            "type": {
+              "option": "u64"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "types": [
+    {
+      "name": "TicketHolder",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "buyer",
+            "type": "publicKey"
+          },
+          {
+            "name": "numTickets",
+            "type": "u64"
+          },
+          {
+            "name": "tokenAccount",
+            "type": "publicKey"
+          }
+        ]
+      }
+    }
+  ],
+  "events": [
+    {
+      "name": "PayoutProcessed",
+      "fields": [
+        {
+          "name": "raffleId",
+          "type": "string",
+          "index": false
+        },
+        {
+          "name": "sellerPayout",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "platformRevenue",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "charityContribution",
+          "type": "u64",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "RaffleClosed",
+      "fields": [
+        {
+          "name": "raffleId",
+          "type": "string",
+          "index": false
+        },
+        {
+          "name": "isFullSale",
+          "type": "bool",
+          "index": false
+        },
+        {
+          "name": "winner",
+          "type": {
+            "option": "publicKey"
+          },
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "TicketHolderProcessed",
+      "fields": [
+        {
+          "name": "raffleId",
+          "type": "string",
+          "index": false
+        },
+        {
+          "name": "buyer",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "refundedAmount",
+          "type": {
+            "option": "u64"
+          },
+          "index": false
+        },
+        {
+          "name": "tokensMinted",
+          "type": {
+            "option": "u64"
+          },
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "TicketPurchased",
+      "fields": [
+        {
+          "name": "raffleId",
+          "type": "string",
+          "index": false
+        },
+        {
+          "name": "buyer",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "numTickets",
+          "type": "u64",
+          "index": false
+        }
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "RaffleCompleted",
+      "msg": "Raffle is already completed"
+    },
+    {
+      "code": 6001,
+      "name": "NotEnoughTickets",
+      "msg": "Not enough tickets sold to select winner"
+    },
+    {
+      "code": 6002,
+      "name": "TicketLimitExceeded",
+      "msg": "Ticket limit exceeded"
+    },
+    {
+      "code": 6003,
+      "name": "NoWinner",
+      "msg": "No winner selected"
+    },
+    {
+      "code": 6004,
+      "name": "PropertyTransferNotConfirmed",
+      "msg": "Property transfer not confirmed"
+    },
+    {
+      "code": 6005,
+      "name": "MathOverflow",
+      "msg": "Math overflow error"
+    },
+    {
+      "code": 6006,
+      "name": "RaffleNotClosed",
+      "msg": "Raffle not yet closed"
+    },
+    {
+      "code": 6007,
+      "name": "NoTicketHolders",
+      "msg": "No ticket holders found"
+    },
+    {
+      "code": 6008,
+      "name": "UseFulfillRandomness",
+      "msg": "Use fulfill_randomness to close full sale raffle"
+    },
+    {
+      "code": 6009,
+      "name": "InvalidHolderAccount",
+      "msg": "Invalid holder account"
+    },
+    {
+      "code": 6010,
+      "name": "InvalidHolderTokenAccount",
+      "msg": "Invalid holder token account"
+    },
+    {
+      "code": 6011,
+      "name": "TicketHoldersNotProcessed",
+      "msg": "Ticket holders not yet processed"
+    },
+    {
+      "code": 6012,
+      "name": "NotFullSale",
+      "msg": "Not a full sale"
+    },
+    {
+      "code": 6013,
+      "name": "FullSale",
+      "msg": "Full sale"
+    },
+    {
+      "code": 6014,
+      "name": "FractionalOwnershipAllowed",
+      "msg": "Fractional ownership is allowed, use process_payout_fractional_with_mint"
+    },
+    {
+      "code": 6015,
+      "name": "FractionalOwnershipNotAllowed",
+      "msg": "Fractional ownership is not allowed, use process_payout_fractional_no_mint"
+    },
+    {
+      "code": 6016,
+      "name": "InvalidMintAuthority",
+      "msg": "Seller is not the mint authority of the property token mint"
+    },
+    {
+      "code": 6017,
+      "name": "InvalidTokenAccountOwner",
+      "msg": "Token account owner does not match expected owner"
+    },
+    {
+      "code": 6018,
+      "name": "InvalidTokenAccountMint",
+      "msg": "Token account mint does not match raffle property NFT mint"
+    },
+    {
+      "code": 6019,
+      "name": "InvalidTokenAccountAmount",
+      "msg": "Token account does not hold exactly 1 token"
+    },
+    {
+      "code": 6020,
+      "name": "InvalidEscrowAccount",
+      "msg": "Invalid escrow account"
+    },
+    {
+      "code": 6021,
+      "name": "InvalidCharityAccount",
+      "msg": "Invalid charity account"
+    }
+  ],
+  "metadata": {
+    "address": "BAkZeFEefRiGYj8des7zXoTpWwNNcfj6NB5694PCTHKo"
+  }
+}

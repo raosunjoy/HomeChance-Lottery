@@ -1,0 +1,22 @@
+{
+  "name": "homechance-backend",
+  "version": "1.0.0",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.29.0",
+    "@solana/web3.js": "^1.98.2",
+    "axios": "^1.6.8",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "stripe": "^18.1.1"
+  },
+  "packageManager": "yarn@4.9.1",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": ""
+}

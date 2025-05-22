@@ -1,0 +1,3 @@
+[submodule "smart-contract/homechance-raffle"]
+	path = smart-contract/homechance-raffle
+	url = https://github.com/raosunjoy/homechance-raffle.git
