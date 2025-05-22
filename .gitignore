@@ -1,13 +1,42 @@
+# Dependency directories (Node.js and Rust)
 node_modules/
 target/
+
+# Environment variables
 .env
+
+# Backup directories
 .git-backup/
+smart-contract/homechance-raffle-backup/
+
+# macOS system files
 *.DS_Store
+
+# Solana test validator artifacts
 test-ledger/
+
+# Yarn-related files
 .yarn/
 package-lock.json
 yarn.lock
 .pnp.cjs
 .pnp.loader.mjs
 install-state.gz
-smart-contract/homechance-raffle-backup/
+
+# Anchor-specific
+.anchor
+target/deploy/homechance_raffle-keypair.json
+
+# Rust-specific (e.g., rustfmt backups)
+**/*.rs.bk
+
+# Optional Node.js/Rust build artifacts
+logs
+*.log
+npm-debug.log*
+coverage
+*.lcov
+.nyc_output
+build/
+debug/
+*.pdb
