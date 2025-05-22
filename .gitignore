@@ -2,3 +2,12 @@ node_modules/
 target/
 .env
 .git-backup/
+*.DS_Store
+test-ledger/
+.yarn/
+package-lock.json
+yarn.lock
+.pnp.cjs
+.pnp.loader.mjs
+install-state.gz
+smart-contract/homechance-raffle-backup/
