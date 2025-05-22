@@ -40,3 +40,4 @@ coverage
 build/
 debug/
 *.pdb
+test-ledger/
